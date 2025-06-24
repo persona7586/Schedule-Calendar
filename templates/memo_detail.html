@@ -12,4 +12,11 @@
     </div>
     <a href="{% url 'home' %}" class="btn btn-secondary mt-3">← 메인으로</a>
   </div>
+
+  <form method="post" action="{% url 'memo_delete' memo.id %}"
+      onsubmit="return confirm('정말 이 메모를 삭제하시겠습니까?');">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger mt-3">삭제</button>
+  </form>
+
 {% endblock %}

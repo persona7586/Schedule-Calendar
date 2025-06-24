@@ -79,3 +79,10 @@ def memo_detail(request, memo_id):
     return render(request, 'memo_detail.html', {
         'memo': memo,
     })
+
+#메모 삭제
+def memo_delete(request, memo_id):
+    memo = get_object_or_404(Memo, id=memo_id)
+    if request.method == 'POST':
+        memo.delete()
+        return redirect('home')

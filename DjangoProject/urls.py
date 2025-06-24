@@ -35,5 +35,6 @@ urlpatterns = [
 
     #메인 페이지 메모 상세보기
     path('memo/<int:memo_id>/', views.memo_detail, name='memo_detail'),
+    path('memo/<int:memo_id>/delete/',     views.memo_delete, name='memo_delete'),
 
 ]
