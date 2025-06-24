@@ -22,3 +22,14 @@ class Memo(models.Model):
 
     def __str__(self):
         return self.title
+
+class Bookmark(models.Model):
+    name       = models.CharField("이름", max_length=255)
+    url        = models.URLField("URL")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table  = "tblbookmark"
+        ordering  = ['-created_at']      # 최신 순으로
+    def __str__(self):
+        return self.name

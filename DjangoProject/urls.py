@@ -43,4 +43,8 @@ urlpatterns = [
     #자막 추출 페이지
     path('auto-subtitles/', views.auto_subtitle, name='auto_subtitle'),
 
+    #메인 화면 북마크
+    path('add_bookmark/', views.add_bookmark, name='add_bookmark'),
+    path('delete_bookmark/<int:bookmark_id>/', views.delete_bookmark, name='delete_bookmark'),
+
 ]

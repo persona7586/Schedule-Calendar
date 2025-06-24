@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
-from myapp.models import Events, Memo
+from myapp.models import Events, Memo, Bookmark
 
 # Create your views here.
 def index(request):
@@ -52,26 +52,25 @@ def remove(request):
     data = {}
     return JsonResponse(data)
 
-# 메인 페이지 나누기
-def home(request):
-    return render(request, 'home.html')
-
-def index(request):
-    return render(request, 'index.html')
 
 # 메인 화면 메모기능 추가
 def home(request):
-    # POST(폼 제출)이 들어오면 새 메모 생성
-    if request.method == 'POST':
-        title   = request.POST.get('title')
-        content = request.POST.get('content')
-        if title and content:
-            Memo.objects.create(title=title, content=content)
-            return redirect('home')
+    # 1) POST: 새 메모 등록
+    if request.method == 'POST' and 'title' in request.POST:
+        Memo.objects.create(
+            title   = request.POST['title'],
+            content = request.POST['content']
+        )
+        return redirect('home')
 
-    memos = Memo.objects.all()   # ordering = ['created_at'] 덕분에 생성 순 정렬
+    # 2) GET: 메모와 즐겨찾기 조회
+    memos     = Memo.objects.all()
+    bookmarks = Bookmark.objects.all()
+
+    # ─── 여기가 핵심: 딕셔너리 } 와 함수 호출 ) 를 닫아줍니다 ───
     return render(request, 'home.html', {
-        'memos': memos,
+        'memos':     memos,
+        'bookmarks': bookmarks,
     })
 
 def memo_detail(request, memo_id):
@@ -103,3 +102,17 @@ def memo_edit(request, memo_id):
 #자막 추출 페이지
 def auto_subtitle(request):
     return render(request, 'auto_subtitle.html')
+
+#메인 화면 북마크
+def add_bookmark(request):
+    if request.method == 'POST':
+        name = request.POST.get('bookmark_name')
+        url  = request.POST.get('bookmark_url')
+        if name and url:
+            Bookmark.objects.create(name=name, url=url)
+    return redirect('home')
+
+def delete_bookmark(request, bookmark_id):
+    bm = get_object_or_404(Bookmark, id=bookmark_id)
+    bm.delete()
+    return redirect('home')
