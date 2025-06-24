@@ -37,4 +37,7 @@ urlpatterns = [
     path('memo/<int:memo_id>/', views.memo_detail, name='memo_detail'),
     path('memo/<int:memo_id>/delete/',     views.memo_delete, name='memo_delete'),
 
+    #메모 상세보기 내용 수정
+    path('memo/<int:memo_id>/edit/', views.memo_edit, name='memo_edit'),
+
 ]

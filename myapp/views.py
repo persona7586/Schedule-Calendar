@@ -86,3 +86,16 @@ def memo_delete(request, memo_id):
     if request.method == 'POST':
         memo.delete()
         return redirect('home')
+
+#메모 수정
+def memo_edit(request, memo_id):
+    memo = get_object_or_404(Memo, id=memo_id)
+    if request.method == 'POST':
+        title   = request.POST.get('title')
+        content = request.POST.get('content')
+        if title and content:
+            memo.title   = title
+            memo.content = content
+            memo.save()
+    # 수정 후에는 상세 화면으로 돌아갑니다
+    return redirect('memo_detail', memo_id=memo.id)
