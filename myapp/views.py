@@ -99,3 +99,7 @@ def memo_edit(request, memo_id):
             memo.save()
     # 수정 후에는 상세 화면으로 돌아갑니다
     return redirect('memo_detail', memo_id=memo.id)
+
+#자막 추출 페이지
+def auto_subtitle(request):
+    return render(request, 'auto_subtitle.html')

@@ -3,11 +3,22 @@
 {% block title %}Home – Schedule App{% endblock %}
 
 {% block content %}
+  <!-- 메인 페이지 헤더와 버튼 -->
   <div class="my-4 text-center">
     <h2>메인 페이지</h2>
-    <a href="{% url 'calendar' %}" class="btn btn-primary btn-lg mt-3">
-      Schedule-Calendar
-    </a>
+    <div class="d-flex justify-content-center gap-2 mt-3">
+      <!-- 달력 페이지로 -->
+      <a href="{% url 'calendar' %}"
+         target="_blank"
+         class="btn btn-primary btn-lg">
+        Schedule-Calendar
+      </a>
+      <!-- 자동 자막 추출 새 창 열기 -->
+      <a href="{% url 'auto_subtitle' %}"
+         class="btn btn-secondary btn-lg">
+        자동 자막 추출
+      </a>
+    </div>
   </div>
 
    <!-- ↓ 여기부터 메모 섹션 -->

@@ -40,4 +40,7 @@ urlpatterns = [
     #메모 상세보기 내용 수정
     path('memo/<int:memo_id>/edit/', views.memo_edit, name='memo_edit'),
 
+    #자막 추출 페이지
+    path('auto-subtitles/', views.auto_subtitle, name='auto_subtitle'),
+
 ]

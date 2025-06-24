@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}자동 자막 추출{% endblock %}
+
+{% block content %}
+  <div class="my-4 text-center">
+    <h2>자동 자막 추출</h2>
+
+    <!-- ← 메인으로 버튼 추가 -->
+    <a href="{% url 'home' %}"
+       class="btn btn-secondary mb-3">
+      ← 메인으로
+    </a>
+
+    <p>여기에 자막 인식/추출 기능 UI를 넣으세요.</p>
+    <!-- 예: 파일 업로드 폼, 실행 버튼 등 -->
+  </div>
+{% endblock %}
