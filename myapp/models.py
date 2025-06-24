@@ -1,4 +1,5 @@
 from django.db import models
+from urllib.parse import urlparse
 
 # Create your models here.
 class Events(models.Model):
@@ -33,3 +34,8 @@ class Bookmark(models.Model):
         ordering  = ['-created_at']      # 최신 순으로
     def __str__(self):
         return self.name
+
+    @property
+    def favicon_url(self):
+        domain = urlparse(self.url).netloc
+        return f"https://www.google.com/s2/favicons?domain={domain}"
