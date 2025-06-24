@@ -1,6 +1,6 @@
 from django.http import JsonResponse
-from django.shortcuts import render
-from myapp.models import Events
+from django.shortcuts import render, get_object_or_404, redirect
+from myapp.models import Events, Memo
 
 # Create your views here.
 def index(request):
@@ -51,3 +51,31 @@ def remove(request):
     event.delete()
     data = {}
     return JsonResponse(data)
+
+# 메인 페이지 나누기
+def home(request):
+    return render(request, 'home.html')
+
+def index(request):
+    return render(request, 'index.html')
+
+# 메인 화면 메모기능 추가
+def home(request):
+    # POST(폼 제출)이 들어오면 새 메모 생성
+    if request.method == 'POST':
+        title   = request.POST.get('title')
+        content = request.POST.get('content')
+        if title and content:
+            Memo.objects.create(title=title, content=content)
+            return redirect('home')
+
+    memos = Memo.objects.all()   # ordering = ['created_at'] 덕분에 생성 순 정렬
+    return render(request, 'home.html', {
+        'memos': memos,
+    })
+
+def memo_detail(request, memo_id):
+    memo = get_object_or_404(Memo, id=memo_id)
+    return render(request, 'memo_detail.html', {
+        'memo': memo,
+    })

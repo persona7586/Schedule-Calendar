@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}메모 상세 – {{ memo.title }}{% endblock %}
+
+{% block content %}
+  <div class="mt-4">
+    <h3>{{ memo.title }}</h3>
+    <p class="text-secondary small">
+      작성일: {{ memo.created_at|date:"Y-m-d H:i" }}
+    </p>
+    <div class="border p-3">
+      {{ memo.content|linebreaks }}
+    </div>
+    <a href="{% url 'home' %}" class="btn btn-secondary mt-3">← 메인으로</a>
+  </div>
+{% endblock %}

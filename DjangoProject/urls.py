@@ -20,9 +20,20 @@ from myapp import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # 1) 메인(홈) 페이지
+    path('', views.home, name='home'),
+    # 2) 달력 페이지
+    path('calendar/', views.index, name='calendar'),
+
+
     path('', views.index, name='index'),
     path('all_events/', views.all_events, name='all_events'),
     path('add_event/', views.add_event, name='add_event'),
     path('update/', views.update, name='update'),
     path('remove/', views.remove, name='remove'),
+
+    #메인 페이지 메모 상세보기
+    path('memo/<int:memo_id>/', views.memo_detail, name='memo_detail'),
+
 ]

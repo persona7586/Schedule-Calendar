@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Home – Schedule App{% endblock %}
+
+{% block content %}
+  <div class="my-4 text-center">
+    <h2>메인 페이지</h2>
+    <a href="{% url 'calendar' %}" class="btn btn-primary btn-lg mt-3">
+      Schedule-Calendar
+    </a>
+  </div>
+
+   <!-- ↓ 여기부터 메모 섹션 -->
+  <div class="card mt-5 p-3">
+    <h4>일정 메모</h4>
+
+    <!-- 메모 추가 폼 -->
+    <form method="post" class="mb-3">
+      {% csrf_token %}
+      <div class="input-group">
+        <input type="text" name="title"     class="form-control" placeholder="메모 제목" required>
+      </div>
+      <div class="mt-2">
+        <textarea name="content" class="form-control" rows="3" placeholder="세부 내용" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-success mt-2">메모 추가</button>
+    </form>
+
+    <!-- 메모 리스트 -->
+    <div class="list-group">
+      {% for memo in memos %}
+        <a href="{% url 'memo_detail' memo.id %}"
+           class="list-group-item list-group-item-action">
+          {{ forloop.counter }}. {{ memo.title }}
+        </a>
+      {% empty %}
+        <p class="text-muted">등록된 메모가 없습니다.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+{% endblock %}

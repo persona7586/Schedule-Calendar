@@ -9,3 +9,16 @@ class Events(models.Model):
 
     class Meta:
         db_table = "tblevents"
+
+# 메인 페이지 메모 기능 추가
+class Memo(models.Model):
+    title      = models.CharField(max_length=255)
+    content    = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table  = "tblmemo"
+        ordering  = ['created_at']
+
+    def __str__(self):
+        return self.title
