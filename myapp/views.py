@@ -248,6 +248,3 @@ def ocr_poll(request):
             text = candidate
 
     return JsonResponse({'text': text})
-
-
-
