@@ -1,18 +1,222 @@
-{% extends "base.html" %}
+<!-- templates/auto_subtitle.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>자동 자막 추출</title>
+  <style>
+    body { font-family: sans-serif; margin:0; padding:1em; }
+    #controls { text-align:center; margin-bottom:1em; }
+    #controls button { margin:0 .3em; padding:.5em 1em; cursor:pointer; }
 
-{% block title %}자동 자막 추출{% endblock %}
+    #video-container {
+      position: relative;
+      width: 80%; max-width:1200px;
+      height: 450px; margin:0 auto 1em;
+      border:1px solid #ccc; background:#000;
+      overflow:hidden;
+    }
+    #screen-video {
+      position:absolute; top:0; left:0;
+      width:100%; height:100%;
+      object-fit:contain;
+      pointer-events:none; z-index:1;
+    }
+    #overlay {
+      position:absolute; top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,0.1);
+      cursor:crosshair;
+      display:none; z-index:2;
+    }
+    #selection-rect {
+      position:absolute; border:2px dashed lime;
+      display:none; z-index:3;
+    }
 
-{% block content %}
-  <div class="my-4 text-center">
-    <h2>자동 자막 추출</h2>
+    /* 디버그용 프리뷰 캔버스 */
+    #debug-canvas {
+      display:block; margin:1em auto;
+      border:2px solid red;
+    }
 
-    <!-- ← 메인으로 버튼 추가 -->
-    <a href="{% url 'home' %}"
-       class="btn btn-secondary mb-3">
-      ← 메인으로
-    </a>
+    #real-time-sub {
+      width:80%; max-width:1200px; height:200px;
+      margin:0 auto; display:block;
+      border:1px solid #999; font-family:monospace;
+      padding:.5em; resize:none;
+    }
+  </style>
 
-    <p>여기에 자막 인식/추출 기능 UI를 넣으세요.</p>
-    <!-- 예: 파일 업로드 폼, 실행 버튼 등 -->
+  <!-- Tesseract.js CDN -->
+  <script src="https://unpkg.com/tesseract.js@2/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <h1 style="text-align:center;">자동 자막 추출</h1>
+  <div id="controls">
+    <button id="btn-share">화면 공유 시작</button>
+    <button id="btn-select">영역 선택 모드</button>
+    <button id="btn-ocr-toggle" style="background:#28a745;color:#fff;">
+      자막 추출 시작
+    </button>
+    <button id="btn-clear">자막 초기화</button>
   </div>
-{% endblock %}
+
+  <div id="video-container">
+    <video id="screen-video" autoplay></video>
+    <div id="overlay"></div>
+    <div id="selection-rect"></div>
+  </div>
+
+  <!-- 디버그: 잘린 영역 미리보기 -->
+  <canvas id="debug-canvas" width="0" height="0"></canvas>
+
+  <h2 style="text-align:center;">실시간 자막</h2>
+  <textarea id="real-time-sub" readonly></textarea>
+
+  <script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const btnShare  = document.getElementById('btn-share');
+    const btnSelect = document.getElementById('btn-select');
+    const btnOcr    = document.getElementById('btn-ocr-toggle');
+    const btnClear  = document.getElementById('btn-clear');
+
+    const video    = document.getElementById('screen-video');
+    const overlay  = document.getElementById('overlay');
+    const rectDiv  = document.getElementById('selection-rect');
+    const debugCv  = document.getElementById('debug-canvas');
+    const debugCtx = debugCv.getContext('2d');
+    const subBox   = document.getElementById('real-time-sub');
+
+    let selecting = false;
+    let startX=0, startY=0;
+    let rect = { x:0, y:0, w:0, h:0 };
+    let ocrInterval = null;
+
+    // 1) 화면 공유
+    btnShare.onclick = async () => {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video:true });
+      video.srcObject = stream;
+      await video.play();
+    };
+
+    // 2) 영역 선택 모드
+    btnSelect.onclick = () => {
+      selecting = true;
+      overlay.style.display = 'block';
+      rectDiv.style.display = 'none';
+    };
+
+    // 3) 드래그 → 고정
+    overlay.addEventListener('mousedown', e => {
+      if (!selecting) return;
+      const b = overlay.getBoundingClientRect();
+      startX = e.clientX - b.left;
+      startY = e.clientY - b.top;
+      rectDiv.style.left   = startX + 'px';
+      rectDiv.style.top    = startY + 'px';
+      rectDiv.style.width  = '0px';
+      rectDiv.style.height = '0px';
+      rectDiv.style.display= 'block';
+
+      const onMouseMove = e => {
+        const curX = e.clientX - b.left;
+        const curY = e.clientY - b.top;
+        const x = Math.min(startX, curX);
+        const y = Math.min(startY, curY);
+        const w = Math.abs(curX - startX);
+        const h = Math.abs(curY - startY);
+        rectDiv.style.left   = x + 'px';
+        rectDiv.style.top    = y + 'px';
+        rectDiv.style.width  = w + 'px';
+        rectDiv.style.height = h + 'px';
+      };
+      const onMouseUp = e => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        overlay.style.display = 'none';
+        selecting = false;
+        const endX = e.clientX - b.left;
+        const endY = e.clientY - b.top;
+        rect = {
+          x: Math.min(startX,endX),
+          y: Math.min(startY,endY),
+          w: Math.abs(endX - startX),
+          h: Math.abs(endY - startY)
+        };
+      };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+
+    // 4) OCR 시작/중단
+    btnOcr.onclick = () => {
+      if (!ocrInterval) {
+        if (rect.w===0 || rect.h===0) {
+          alert('먼저 영역을 드래그로 선택하세요.');
+          return;
+        }
+        // 버튼 토글
+        btnOcr.textContent = '자막 추출 중단';
+        btnOcr.style.background = '#dc3545';
+
+        // 비디오 → 원본 픽셀 매핑 비율
+        const vb = video.getBoundingClientRect();
+        const ratioX = video.videoWidth  / vb.width;
+        const ratioY = video.videoHeight / vb.height;
+
+        ocrInterval = setInterval(async () => {
+          // ① 실제 자를 원본 좌표
+          const sx = rect.x * ratioX;
+          const sy = rect.y * ratioY;
+          const sw = rect.w * ratioX;
+          const sh = rect.h * ratioY;
+
+          // ② 디버그 캔버스 크기 맞추고, 잘라내기
+          debugCv.width  = sw;
+          debugCv.height = sh;
+          debugCtx.clearRect(0,0,sw,sh);
+          debugCtx.drawImage(
+            video,
+            sx, sy, sw, sh,
+            0,  0,  sw, sh
+          );
+
+          // ③ Tesseract.js OCR 실행
+          const { data: { text } } = await Tesseract.recognize(
+            debugCv,
+            'kor',
+            { logger: m => {/*console.log(m)*/} }
+          );
+          // ④ 불필요 문자 제거
+          const filtered = text.replace(/[^가-힣0-9\s]/g,'').trim();
+          if (filtered) {
+            subBox.value += filtered + '\n';
+            subBox.scrollTop = subBox.scrollHeight;
+          }
+        }, 800);
+
+      } else {
+        clearInterval(ocrInterval);
+        ocrInterval = null;
+        btnOcr.textContent = '자막 추출 시작';
+        btnOcr.style.background = '#28a745';
+      }
+    };
+
+    // 5) 자막 초기화
+    btnClear.onclick = () => {
+      subBox.value = '';
+      rectDiv.style.display = 'none';
+      rect = { x:0,y:0,w:0,h:0 };
+      if (ocrInterval) {
+        clearInterval(ocrInterval);
+        ocrInterval = null;
+        btnOcr.textContent = '자막 추출 시작';
+        btnOcr.style.background = '#28a745';
+      }
+    };
+  });
+  </script>
+</body>
+</html>

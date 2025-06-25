@@ -17,6 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from myapp import views
+from myapp.views import subtitles_api
+from myapp.views import start_ocr
+from myapp.views import set_rois
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,13 +28,11 @@ urlpatterns = [
     path('', views.home, name='home'),
     # 2) 달력 페이지
     path('calendar/', views.index, name='calendar'),
-
-
-    path('', views.index, name='index'),
     path('all_events/', views.all_events, name='all_events'),
     path('add_event/', views.add_event, name='add_event'),
     path('update/', views.update, name='update'),
     path('remove/', views.remove, name='remove'),
+
 
     #메인 페이지 메모 상세보기
     path('memo/<int:memo_id>/', views.memo_detail, name='memo_detail'),
@@ -46,5 +47,20 @@ urlpatterns = [
     #메인 화면 북마크
     path('add_bookmark/', views.add_bookmark, name='add_bookmark'),
     path('delete_bookmark/<int:bookmark_id>/', views.delete_bookmark, name='delete_bookmark'),
+
+    #자막 추출 기능
+    path('auto-subtitles/', views.auto_subtitle, name='auto_subtitle'),
+
+    path('api/subtitles/', subtitles_api, name='api_subtitles'),
+
+    path('start-ocr/', start_ocr, name='start_ocr'),
+
+    path('set-roi/', views.set_roi, name='set_roi'),
+
+    path('api/clear-subtitles/', views.clear_subtitles, name='clear_subtitles'),
+
+    path('api/set-rois/', views.set_rois, name='set_rois'),
+
+    path('ocr-poll/', views.ocr_poll, name='ocr_poll'),
 
 ]
