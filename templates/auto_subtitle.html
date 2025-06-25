@@ -113,11 +113,13 @@
       const b = overlay.getBoundingClientRect();
       startX = e.clientX - b.left;
       startY = e.clientY - b.top;
-      rectDiv.style.left   = startX + 'px';
-      rectDiv.style.top    = startY + 'px';
-      rectDiv.style.width  = '0px';
-      rectDiv.style.height = '0px';
-      rectDiv.style.display= 'block';
+      Object.assign(rectDiv.style, {
+        left: startX + 'px',
+        top: startY + 'px',
+        width: '0px',
+        height: '0px',
+        display: 'block'
+      });
 
       const onMove = ev => {
         const cx = ev.clientX - b.left;
@@ -146,7 +148,7 @@
     // 4) OCR 시작/중단
     btnOcr.onclick = () => {
       if (!ocrInterval) {
-        if (rect.w===0 || rect.h===0) {
+        if (!rect.w || !rect.h) {
           alert('먼저 영역을 드래그로 선택하세요.');
           return;
         }
@@ -182,14 +184,11 @@
 
           // (3) 잘라낸 프레임 그리기
           debugCtx.clearRect(0, 0, sw, sh);
-          debugCtx.drawImage(video,
-            sx, sy, sw, sh,
-            0,  0,  sw, sh
-          );
+          debugCtx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
 
-          // (4) Otsu 전처리는 그대로…
+          // (4) Otsu 전처리 등… (필요한 경우 여기에)
 
-          // (5) **PSM 모드 추가** 해서 OCR
+          // (5) OCR: PSM SINGLE_BLOCK 명시
           const { data:{ text }} = await Tesseract.recognize(
             debugCv,
             'kor+eng',
