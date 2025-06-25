@@ -93,7 +93,9 @@
     let rect = { x:0, y:0, w:0, h:0 };
     let ocrInterval = null;
 
-    // 1) 화면 공유
+    let prevText = '';
+
+    // 1) 화면 공유 시작
     btnShare.onclick = async () => {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video:true });
       video.srcObject = stream;
@@ -107,7 +109,7 @@
       rectDiv.style.display = 'none';
     };
 
-    // 3) 드래그 → 고정
+    // 3) 드래그 → 영역 고정
     overlay.addEventListener('mousedown', e => {
       if (!selecting) return;
       const b = overlay.getBoundingClientRect();
@@ -119,34 +121,28 @@
       rectDiv.style.height = '0px';
       rectDiv.style.display= 'block';
 
-      const onMouseMove = e => {
-        const curX = e.clientX - b.left;
-        const curY = e.clientY - b.top;
-        const x = Math.min(startX, curX);
-        const y = Math.min(startY, curY);
-        const w = Math.abs(curX - startX);
-        const h = Math.abs(curY - startY);
-        rectDiv.style.left   = x + 'px';
-        rectDiv.style.top    = y + 'px';
-        rectDiv.style.width  = w + 'px';
-        rectDiv.style.height = h + 'px';
+      const onMove = ev => {
+        const cx = ev.clientX - b.left;
+        const cy = ev.clientY - b.top;
+        const x = Math.min(startX,cx), y = Math.min(startY,cy);
+        const w = Math.abs(cx-startX), h = Math.abs(cy-startY);
+        Object.assign(rectDiv.style, { left:x+'px', top:y+'px', width:w+'px', height:h+'px' });
       };
-      const onMouseUp = e => {
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
+      const onUp = ev => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
         overlay.style.display = 'none';
         selecting = false;
-        const endX = e.clientX - b.left;
-        const endY = e.clientY - b.top;
+        const ex = ev.clientX - b.left, ey = ev.clientY - b.top;
         rect = {
-          x: Math.min(startX,endX),
-          y: Math.min(startY,endY),
-          w: Math.abs(endX - startX),
-          h: Math.abs(endY - startY)
+          x: Math.min(startX,ex),
+          y: Math.min(startY,ey),
+          w: Math.abs(ex-startX),
+          h: Math.abs(ey-startY)
         };
       };
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
     });
 
     // 4) OCR 시작/중단
@@ -156,50 +152,76 @@
           alert('먼저 영역을 드래그로 선택하세요.');
           return;
         }
-        // 버튼 토글
-        btnOcr.textContent = '자막 추출 중단';
+        btnOcr.textContent      = '자막 추출 중단';
         btnOcr.style.background = '#dc3545';
 
-        // 비디오 → 원본 픽셀 매핑 비율
-        const vb = video.getBoundingClientRect();
-        const ratioX = video.videoWidth  / vb.width;
-        const ratioY = video.videoHeight / vb.height;
+        const vb     = video.getBoundingClientRect();
+        const vidAR  = video.videoWidth / video.videoHeight;
+        // 렌더된 비디오 실제 영역 계산
+        let renderW, renderH, offsetX, offsetY;
+        if (vb.width / vb.height > vidAR) {
+          renderH = vb.height;
+          renderW = renderH * vidAR;
+          offsetX = (vb.width - renderW)/2;
+          offsetY = 0;
+        } else {
+          renderW = vb.width;
+          renderH = renderW / vidAR;
+          offsetX = 0;
+          offsetY = (vb.height - renderH)/2;
+        }
 
         ocrInterval = setInterval(async () => {
-          // ① 실제 자를 원본 좌표
-          const sx = rect.x * ratioX;
-          const sy = rect.y * ratioY;
-          const sw = rect.w * ratioX;
-          const sh = rect.h * ratioY;
+          // ① 원본 영상 픽셀 좌표 보정
+          const sx = (rect.x - offsetX) * (video.videoWidth  / renderW);
+          const sy = (rect.y - offsetY) * (video.videoHeight / renderH);
+          const sw = rect.w * (video.videoWidth  / renderW);
+          const sh = rect.h * (video.videoHeight / renderH);
 
-          // ② 디버그 캔버스 크기 맞추고, 잘라내기
-          debugCv.width  = sw;
-          debugCv.height = sh;
+          // ② 캔버스 해상도 & 크기 설정
+          const dpr = window.devicePixelRatio || 1;
+          debugCv.width        = sw * dpr;
+          debugCv.height       = sh * dpr;
+          debugCv.style.width  = `${rect.w}px`;
+          debugCv.style.height = `${rect.h}px`;
+          debugCtx.setTransform(dpr,0,0,dpr,0,0);
+
+          // ③ 잘라낸 프레임 그리기
           debugCtx.clearRect(0,0,sw,sh);
-          debugCtx.drawImage(
-            video,
-            sx, sy, sw, sh,
-            0,  0,  sw, sh
+          debugCtx.drawImage(video, sx,sy, sw,sh, 0,0, sw,sh);
+
+          // ④ 간단 전처리(이진화)
+          const img = debugCtx.getImageData(0,0,sw,sh);
+          for (let i=0; i<img.data.length; i+=4) {
+            const gray = (img.data[i]+img.data[i+1]+img.data[i+2])/3;
+            const v = gray>128?255:0;
+            img.data[i]=img.data[i+1]=img.data[i+2]=v;
+          }
+          debugCtx.putImageData(img,0,0);
+
+          // ⑤ OCR(kor+eng, 특수문자 포함)
+          const { data:{ text }} = await Tesseract.recognize(
+            debugCv,
+            'kor+eng',
+            {
+              tessedit_char_whitelist: '가-힣A-Za-z0-9[](),.?!:; ' ,
+              logger: m=>{}
+            }
           );
 
-          // ③ Tesseract.js OCR 실행
-          const { data: { text } } = await Tesseract.recognize(
-            debugCv,
-            'kor',
-            { logger: m => {/*console.log(m)*/} }
-          );
-          // ④ 불필요 문자 제거
-          const filtered = text.replace(/[^가-힣0-9\s]/g,'').trim();
-          if (filtered) {
+          // 2) 중복 방지 로직 (3번)
+          const filtered = text.trim();
+          if (filtered && filtered !== prevText) {
+            prevText = filtered;
             subBox.value += filtered + '\n';
             subBox.scrollTop = subBox.scrollHeight;
           }
-        }, 800);
+        }, 700);
 
       } else {
         clearInterval(ocrInterval);
         ocrInterval = null;
-        btnOcr.textContent = '자막 추출 시작';
+        btnOcr.textContent      = '자막 추출 시작';
         btnOcr.style.background = '#28a745';
       }
     };
@@ -207,14 +229,13 @@
     // 5) 자막 초기화
     btnClear.onclick = () => {
       subBox.value = '';
+      prevText = '';     // 중복 기록 초기화 (4번)
+      clearInterval(ocrInterval);
+      ocrInterval = null;
+      btnOcr.textContent      = '자막 추출 시작';
+      btnOcr.style.background = '#28a745';
       rectDiv.style.display = 'none';
       rect = { x:0,y:0,w:0,h:0 };
-      if (ocrInterval) {
-        clearInterval(ocrInterval);
-        ocrInterval = null;
-        btnOcr.textContent = '자막 추출 시작';
-        btnOcr.style.background = '#28a745';
-      }
     };
   });
   </script>
